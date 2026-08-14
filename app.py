@@ -1,16 +1,16 @@
 import os
 import cv2
 import gradio as gr
+import keras  # <-- Usamos Keras 3 directamente
 import numpy as np
-import tensorflow as tf
 
-# 1. Cargar el modelo
-model = tf.keras.models.load_model("modelo_emociones.keras")
+# Cargar el modelo con Keras 3
+model = keras.models.load_model("modelo_emociones.keras")
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 )
 
-# 2. Definir emociones
+# 4 Emociones
 EMOTIONS = ["Enojado 😡", "Feliz 😄", "Neutral 😐", "Sorprendido 😲"]
 
 
@@ -38,13 +38,13 @@ def predict_emotion(image):
     return {EMOTIONS[i]: float(preds[i]) for i in range(len(EMOTIONS))}
 
 
-# 3. Interfaz de Gradio
+# Interfaz de Gradio
 custom_theme = gr.themes.Soft(primary_hue="indigo", secondary_hue="pink")
 
 with gr.Blocks(theme=custom_theme, title="Clasificador de Emociones AI") as app:
     gr.Markdown(
         """
-        # Clasificador de Emociones 
+        # Clasificador de Emociones en Tiempo Real
         ### Detecta 4 emociones clave (Enojado, Feliz, Neutral y Sorpresa) usando una CNN.
         """
     )
@@ -64,6 +64,5 @@ with gr.Blocks(theme=custom_theme, title="Clasificador de Emociones AI") as app:
     btn.click(fn=predict_emotion, inputs=webcam_input, outputs=label_output)
 
 if __name__ == "__main__":
-    # Obtener el puerto que asigna Render automáticamente
     port = int(os.environ.get("PORT", 7860))
     app.launch(server_name="0.0.0.0", server_port=port)
