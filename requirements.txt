@@ -1,6 +1,8 @@
-keras>=3.0.0
-tensorflow-cpu>=2.16.1
-gradio
-opencv-python-headless
-pillow
-numpy
+streamlit==1.21.0
+numpy==1.23.5
+opencv-python-headless==4.8.0.74
+tensorflow==2.10.1
+keras==2.10.0
+pillow==9.5.0
+h5py==3.7.0
+matplotlib==3.6.3
