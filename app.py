@@ -1,16 +1,16 @@
 import os
 import cv2
 import gradio as gr
-import keras  # <-- Usamos Keras 3 directamente
 import numpy as np
+import tensorflow as tf
 
-# Cargar el modelo con Keras 3
-model = keras.models.load_model("modelo_emociones.keras")
+# 1. Cargar modelo .h5 de forma segura
+model = tf.keras.models.load_model("modelo_emociones.h5", compile=False)
+
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 )
 
-# 4 Emociones
 EMOTIONS = ["Enojado 😡", "Feliz 😄", "Neutral 😐", "Sorprendido 😲"]
 
 
@@ -38,31 +38,34 @@ def predict_emotion(image):
     return {EMOTIONS[i]: float(preds[i]) for i in range(len(EMOTIONS))}
 
 
-# Interfaz de Gradio
+# 2. Interfaz visual
 custom_theme = gr.themes.Soft(primary_hue="indigo", secondary_hue="pink")
 
-with gr.Blocks(theme=custom_theme, title="Clasificador de Emociones AI") as app:
+with gr.Blocks(theme=custom_theme, title="Clasificador de Emociones") as app:
     gr.Markdown(
         """
-        # Clasificador de Emociones en Tiempo Real
-        ### Detecta 4 emociones clave (Enojado, Feliz, Neutral y Sorpresa) usando una CNN.
+        # Clasificador de Emociones
+        Detecta 4 emociones clave (Enojado, Feliz, Neutral y Sorpresa).
         """
     )
-
     with gr.Row():
-        with gr.Column(scale=1):
+        with gr.Column():
             webcam_input = gr.Image(
                 sources=["webcam", "upload"],
                 type="numpy",
                 label="Cámara / Imagen",
             )
             btn = gr.Button("Analizar Emoción ", variant="primary")
-
-        with gr.Column(scale=1):
-            label_output = gr.Label(num_top_classes=4, label="Emoción Detectada")
+        with gr.Column():
+            label_output = gr.Label(num_top_classes=4, label="Resultado")
 
     btn.click(fn=predict_emotion, inputs=webcam_input, outputs=label_output)
 
+# 3. Lanzador con variables de entorno para Render
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 7860))
-    app.launch(server_name="0.0.0.0", server_port=port)
+    port = int(os.environ.get("PORT", 10000))
+    app.launch(
+        server_name="0.0.0.0",
+        server_port=port,
+        prevent_thread_lock=False,
+    )
