@@ -67,7 +67,7 @@ st.markdown("""
 # 4. Cargar modelo y detector facial
 @st.cache_resource
 def get_model():
-    return load_model("modelos/modelo_emociones.hdf5", compile=False)
+    return load_model("modelo_emociones.hdf5", compile=False)
 
 try:
     modelo = get_model()
