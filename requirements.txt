@@ -1,4 +1,6 @@
-tensorflow
+tf-keras
+tf-keras-nightly
+tensorflow>=2.16.1
 gradio
 opencv-python-headless
 pillow
