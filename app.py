@@ -1,7 +1,6 @@
 import os
-import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import streamlit as st
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
@@ -10,11 +9,10 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropou
 # 1. Configuración de página
 st.set_page_config(
     page_title="Clasificador de emociones con IA",
-    page_icon="",
     layout="centered"
 )
 
-# 2. Estilos personalizados modernos
+# 2. Estilos visuales modernos
 st.markdown("""
 <style>
     .main-header {
@@ -61,7 +59,7 @@ st.markdown("""
 # 3. Encabezado
 st.markdown("""
 <div class="main-header">
-    <div class="main-title">Detector de emociones con IA</div>
+    <div class="main-title"> Clasificador de emociones con IA</div>
     <div class="subtitle">Sube una imagen y descubre la emoción que refleja el rostro</div>
 </div>
 """, unsafe_allow_html=True)
@@ -92,71 +90,46 @@ except Exception as e:
 
 # 4 Emociones
 EMOCIONES = ["Enojado 😡", "Feliz 😄", "Neutral 😐", "Sorprendido 😲"]
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
-# 5. Entrada exclusiva para subir fotos
+# 5. Entrada para subir fotos
 uploaded_file = st.file_uploader(
-    "Sube una imagen con rostro (JPG, JPEG o PNG)", 
+    "📁 Sube una imagen con rostro (JPG, JPEG o PNG)", 
     type=["jpg", "jpeg", "png"]
 )
 
-# 6. Procesamiento y Clasificación
+# 6. Procesamiento y Clasificación directa con PIL
 if uploaded_file is not None:
-    img = Image.open(uploaded_file)
-    img_np = np.array(img.convert("RGB"))
-    gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+    # Cargar imagen original
+    img_original = Image.open(uploaded_file).convert("RGB")
 
-    img_original = img_np.copy()
-    img_marked = img_np.copy()
+    # Preprocesar a escala de grises y tamaño 48x48
+    img_gray = ImageOps.grayscale(img_original)
+    img_resized = img_gray.resize((48, 48))
 
-    # Detección de rostros con Haar Cascades
-    caras = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5, minSize=(30, 30))
+    # Normalizar para la CNN
+    img_array = np.array(img_resized, dtype=np.float32) / 255.0
+    img_array = np.reshape(img_array, (1, 48, 48, 1))
 
-    if len(caras) == 0:
-        st.warning("No se detectó ningún rostro en la imagen. Intenta con una foto más clara o mejor iluminada.")
-    else:
-        emocion_top = ""
-        certeza_top = 0.0
-        all_preds = []
+    # Predicción con la red neuronal
+    prediccion = modelo.predict(img_array, verbose=0)[0]
+    idx = int(np.argmax(prediccion))
+    emocion_top = EMOCIONES[idx]
+    certeza_top = float(prediccion[idx]) * 100
 
-        for (x, y, w, h) in caras:
-            # Recortar área del rostro y preprocesar a 48x48
-            rostro = gray[y:y + h, x:x + w]
-            rostro = cv2.resize(rostro, (48, 48))
-            rostro = rostro.astype("float32") / 255.0
-            rostro = np.expand_dims(rostro, axis=0)
-            rostro = np.expand_dims(rostro, axis=-1)
+    # Mostrar imagen centrada
+    st.image(img_original, caption="Imagen Analizada", use_container_width=True)
 
-            # Inferencia con la CNN
-            prediccion = modelo.predict(rostro, verbose=0)[0]
-            all_preds = prediccion
-            idx = int(np.argmax(prediccion))
-            emocion_top = EMOCIONES[idx]
-            certeza_top = float(prediccion[idx]) * 100
+    # Tarjeta de resultado principal
+    st.markdown(f"""
+    <div class="result-card">
+        <div class="result-emotion">Emoción Detectada: {emocion_top}</div>
+        <div class="result-confidence">Certeza: <strong>{certeza_top:.2f}%</strong></div>
+    </div>
+    """, unsafe_allow_html=True)
 
-            # Dibujar recuadro cian y texto de la emoción sobre el rostro
-            cv2.rectangle(img_marked, (x, y), (x + w, y + h), (0, 242, 254), 3)
-            cv2.putText(img_marked, emocion_top.split()[0], (x, y - 10), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 242, 254), 2)
-
-        # Mostrar imágenes lado a lado
-        col1, col2 = st.columns(2)
-        with col1:
-            st.image(img_original, caption="Imagen Original", use_container_width=True)
-        with col2:
-            st.image(img_marked, caption="Rostro Detectado", use_container_width=True)
-
-        # Tarjeta de resultado principal
-        st.markdown(f"""
-        <div class="result-card">
-            <div class="result-emotion">Emoción Detectada: {emocion_top}</div>
-            <div class="result-confidence">Certeza: <strong>{certeza_top:.2f}%</strong></div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Desglose de porcentajes
-        st.subheader("Desglose de Probabilidades")
-        for i, emo in enumerate(EMOCIONES):
-            prob = float(all_preds[i])
-            st.write(f"**{emo}**: {prob * 100:.1f}%")
-            st.progress(prob)
+    # Desglose de porcentajes interactivo
+    st.subheader("Desglose de Probabilidades")
+    for i, emo in enumerate(EMOCIONES):
+        prob = float(prediccion[i])
+        st.write(f"**{emo}**: {prob * 100:.1f}%")
+        st.progress(prob)
