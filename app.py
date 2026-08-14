@@ -1,15 +1,16 @@
+import os
 import cv2
 import gradio as gr
 import numpy as np
 import tensorflow as tf
 
-# 1. Cargar modelo y detector
+# 1. Cargar el modelo
 model = tf.keras.models.load_model("modelo_emociones.keras")
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 )
 
-# 2. Definir las 4 clases
+# 2. Definir emociones
 EMOTIONS = ["Enojado 😡", "Feliz 😄", "Neutral 😐", "Sorprendido 😲"]
 
 
@@ -17,7 +18,6 @@ def predict_emotion(image):
     if image is None:
         return None
 
-    # Procesar imagen a escala de grises
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     faces = face_cascade.detectMultiScale(
         gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30)
@@ -30,24 +30,22 @@ def predict_emotion(image):
         roi = gray[y : y + h, x : x + w]
         roi = cv2.resize(roi, (48, 48))
 
-    # Normalizar para la CNN
     roi = roi.astype("float32") / 255.0
     roi = np.expand_dims(roi, axis=-1)
     roi = np.expand_dims(roi, axis=0)
 
-    # Predicción
     preds = model.predict(roi, verbose=0)[0]
     return {EMOTIONS[i]: float(preds[i]) for i in range(len(EMOTIONS))}
 
 
-# 3. Diseño de la interfaz gráfica
+# 3. Interfaz de Gradio
 custom_theme = gr.themes.Soft(primary_hue="indigo", secondary_hue="pink")
 
 with gr.Blocks(theme=custom_theme, title="Clasificador de Emociones AI") as app:
     gr.Markdown(
         """
-        # Clasificador de Emociones en Tiempo Real
-        ### Detecta 4 emociones (Enojado, Feliz, Neutral y Sorpresa) usando una CNN.
+        # Clasificador de Emociones 
+        ### Detecta 4 emociones clave (Enojado, Feliz, Neutral y Sorpresa) usando una CNN.
         """
     )
 
@@ -58,7 +56,7 @@ with gr.Blocks(theme=custom_theme, title="Clasificador de Emociones AI") as app:
                 type="numpy",
                 label="Cámara / Imagen",
             )
-            btn = gr.Button("Analizar Emoción ✨", variant="primary")
+            btn = gr.Button("Analizar Emoción ", variant="primary")
 
         with gr.Column(scale=1):
             label_output = gr.Label(num_top_classes=4, label="Emoción Detectada")
@@ -66,4 +64,6 @@ with gr.Blocks(theme=custom_theme, title="Clasificador de Emociones AI") as app:
     btn.click(fn=predict_emotion, inputs=webcam_input, outputs=label_output)
 
 if __name__ == "__main__":
-    app.launch(share=True) 
+    # Obtener el puerto que asigna Render automáticamente
+    port = int(os.environ.get("PORT", 7860))
+    app.launch(server_name="0.0.0.0", server_port=port)
